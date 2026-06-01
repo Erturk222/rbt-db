@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RBT.db — Dokümantasyon</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'JetBrains Mono', monospace; background: #0a0a0f; color: #e8e8f0; line-height: 1.7; }
+  header { background: #111118; border-bottom: 1px solid #2a2a3a; padding: 32px 48px; }
+  header h1 { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; }
+  header h1 span { color: #e63946; }
+  header p { color: #6666aa; margin-top: 8px; font-size: 13px; }
+  .container { max-width: 860px; margin: 0 auto; padding: 48px 24px; }
+  h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; margin: 40px 0 16px; color: #7c6af7; border-left: 3px solid #7c6af7; padding-left: 12px; }
+  h3 { font-size: 14px; font-weight: 600; margin: 24px 0 8px; color: #e8e8f0; }
+  p { color: #aaaacc; font-size: 13px; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { background: #1a1a24; color: #7c6af7; padding: 10px 14px; text-align: left; border: 1px solid #2a2a3a; }
+  td { padding: 10px 14px; border: 1px solid #2a2a3a; color: #e8e8f0; }
+  tr:nth-child(even) td { background: #111118; }
+  code { background: #1a1a24; padding: 2px 8px; border-radius: 4px; color: #2ec27e; font-size: 12px; }
+  pre { background: #1a1a24; border: 1px solid #2a2a3a; border-radius: 8px; padding: 20px; margin: 16px 0; overflow-x: auto; font-size: 12px; color: #e8e8f0; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; margin: 2px; }
+  .green { background: rgba(46,194,126,0.15); color: #2ec27e; border: 1px solid rgba(46,194,126,0.3); }
+  .purple { background: rgba(124,106,247,0.15); color: #7c6af7; border: 1px solid rgba(124,106,247,0.3); }
+  .red { background: rgba(230,57,70,0.15); color: #e63946; border: 1px solid rgba(230,57,70,0.3); }
+  .rule-box { background: #111118; border: 1px solid #2a2a3a; border-radius: 8px; padding: 20px; margin: 16px 0; }
+  .rule-box li { color: #aaaacc; font-size: 13px; margin: 8px 0 8px 20px; }
+  footer { text-align: center; padding: 40px; color: #2a2a3a; font-size: 11px; border-top: 1px solid #2a2a3a; margin-top: 60px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RBT<span>.</span>db</h1>
+  <p>Red-Black Tree Key-Value Database Engine &nbsp;·&nbsp; Algoritma Analizi Projesi &nbsp;·&nbsp; Student 2</p>
+</header>
+
+<div class="container">
+
+  <h2>Proje Hakkında</h2>
+  <p>Bu proje, Guibas & Sedgewick (1978) tarafından yayımlanan <em>"A Dichromatic Framework for Balanced Trees"</em> makalesini temel alarak sıfırdan yazılmış bir Red-Black Tree implementasyonu içermektedir. Üzerine bir key-value veritabanı motoru ve web tabanlı interaktif görselleştirici inşa edilmiştir.</p>
+
+  <h2>Red-Black Tree Kuralları</h2>
+  <div class="rule-box">
+    <ol>
+      <li>Her node <strong>RED</strong> veya <strong>BLACK</strong> renktedir</li>
+      <li>Root node her zaman <strong>BLACK</strong> olmalıdır</li>
+      <li>Her NIL yaprak node <strong>BLACK</strong> kabul edilir</li>
+      <li>Bir node <strong>RED</strong> ise, her iki çocuğu da <strong>BLACK</strong> olmalıdır</li>
+      <li>Herhangi bir node'dan tüm alt NIL yapraklara giden yollarda eşit sayıda BLACK node bulunur <em>(Black-Height invariant)</em></li>
+    </ol>
+  </div>
+
+  <h2>Karmaşıklık Analizi</h2>
+  <table>
+    <tr><th>İşlem</th><th>Zaman</th><th>Alan</th></tr>
+    <tr><td>INSERT</td><td>O(log n)</td><td>O(1)</td></tr>
+    <tr><td>DELETE</td><td>O(log n)</td><td>O(1)</td></tr>
+    <tr><td>SEARCH</td><td>O(log n)</td><td>O(1)</td></tr>
+    <tr><td>Toplam Alan</td><td>—</td><td>O(n)</td></tr>
+  </table>
+
+  <h2>Rotasyon ve Renk Kuralları</h2>
+  <h3>INSERT Fixup — 3 Durum</h3>
+  <table>
+    <tr><th>Durum</th><th>Koşul</th><th>İşlem</th></tr>
+    <tr><td>Case 1</td><td>Uncle RED</td><td>Recolor: parent + uncle → BLACK, grandparent → RED</td></tr>
+    <tr><td>Case 2</td><td>Uncle BLACK, sağ çocuk</td><td>Left rotate parent</td></tr>
+    <tr><td>Case 3</td><td>Uncle BLACK, sol çocuk</td><td>Recolor + right rotate grandparent</td></tr>
+  </table>
+
+  <h2>CLI Sorgu Dili</h2>
+  <table>
+    <tr><th>Komut</th><th>Açıklama</th><th>Karmaşıklık</th></tr>
+    <tr><td><code>SET key value</code></td><td>Ekle veya güncelle</td><td>O(log n)</td></tr>
+    <tr><td><code>GET key</code></td><td>Değeri getir</td><td>O(log n)</td></tr>
+    <tr><td><code>DEL key</code></td><td>Sil</td><td>O(log n)</td></tr>
+    <tr><td><code>KEYS</code></td><td>Tüm anahtarları listele</td><td>O(n)</td></tr>
+    <tr><td><code>VERIFY</code></td><td>RBT invariantlarını kontrol et</td><td>O(n)</td></tr>
+    <tr><td><code>CLEAR</code></td><td>Veritabanını sıfırla</td><td>O(1)</td></tr>
+  </table>
+
+  <h2>Kurulum</h2>
+  <pre>git clone https://github.com/Erturk222/rbt-db.git
+cd rbt-db
+pip install flask flask-cors pytest
+python app.py
+# Tarayıcıda aç: http://localhost:5000</pre>
+
+  <h2>Test Sonuçları</h2>
+  <p>
+    <span class="badge green">✓ 13/13 test geçti</span>
+    <span class="badge green">✓ 10.000 ekleme → Black-Height sağlam</span>
+    <span class="badge green">✓ O(log n) doğrulandı</span>
+    <span class="badge purple">0.10s toplam süre</span>
+  </p>
+  <pre>test_10000_random_insertions_black_height ... PASSED
+test_black_height_after_deletions        ... PASSED
+test_black_height_invariant_small        ... PASSED
+test_delete_existing                     ... PASSED
+test_delete_missing                      ... PASSED
+test_inorder_sorted                      ... PASSED
+test_insert_and_search                   ... PASSED
+test_red_property_no_consecutive_reds    ... PASSED
+test_root_is_black                       ... PASSED
+test_search_missing_key                  ... PASSED
+test_search_ologn                        ... PASSED
+test_size_tracking                       ... PASSED
+test_update_existing_key                 ... PASSED
+================================ 13 passed in 0.10s</pre>
+
+  <h2>Kaynak</h2>
+  <p>Guibas, L. J., & Sedgewick, R. (1978). <em>A Dichromatic Framework for Balanced Trees.</em> Proceedings of the 19th Annual Symposium on Foundations of Computer Science.</p>
+
+</div>
+
+<footer>
+  RBT.db · Algoritma Analizi Projesi · github.com/Erturk222/rbt-db
+</footer>
+
+</body>
+</html>
