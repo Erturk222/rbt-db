@@ -438,5 +438,80 @@ async function verifyTree() {
   if (data.tree) renderTree(data.tree);
 })();
 </script>
+<div id="stepper-panel" style="
+  position: fixed; bottom: 0; left: 340px; right: 0;
+  background: #111118; border-top: 1px solid #2a2a3a;
+  padding: 12px 24px; display: flex; align-items: center; gap: 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  z-index: 100;
+">
+  <span style="color: #6666aa;">adım adım:</span>
+  <button onclick="stepperLoad()" style="padding:6px 14px; background:#7c6af7; border:none; border-radius:6px; color:white; cursor:pointer; font-family:inherit; font-size:11px;">▶ Yükle</button>
+  <button onclick="stepperPrev()" style="padding:6px 14px; background:#1a1a24; border:1px solid #2a2a3a; border-radius:6px; color:white; cursor:pointer; font-family:inherit; font-size:11px;">◀ Geri</button>
+  <button onclick="stepperNext()" style="padding:6px 14px; background:#1a1a24; border:1px solid #2a2a3a; border-radius:6px; color:white; cursor:pointer; font-family:inherit; font-size:11px;">İleri ▶</button>
+  <button onclick="stepperPlay()" id="play-btn" style="padding:6px 14px; background:#2ec27e; border:none; border-radius:6px; color:white; cursor:pointer; font-family:inherit; font-size:11px;">⏵ Oynat</button>
+  <button onclick="stepperPause()" style="padding:6px 14px; background:#1a1a24; border:1px solid #2a2a3a; border-radius:6px; color:white; cursor:pointer; font-family:inherit; font-size:11px;">⏸ Durdur</button>
+  <span id="step-info" style="color:#6666aa; margin-left:8px;">— / —</span>
+  <span id="step-desc" style="color:#e8e8f0; margin-left:4px;"></span>
+</div>
+
+<script>
+let stepperStates = [];
+let stepperIndex = -1;
+let stepperTimer = null;
+
+async function stepperLoad() {
+  // 12 sayıyı tek tek ekleyip her adımı kaydet
+  await api('CLEAR');
+  const entries = [['15','15'],['6','6'],['18','18'],['3','3'],['7','7'],['17','17'],['20','20'],['2','2'],['4','4'],['13','13'],['9','9'],['11','11']];
+  stepperStates = [];
+  stepperStates.push({ tree: null, desc: 'Başlangıç — ağaç boş' });
+  for (const [k, v] of entries) {
+    const r = await api(`SET ${k} ${v}`);
+    const ops = (r.log || []).map(o => o.action + ' ' + (o.key||'')).join(', ');
+    stepperStates.push({ tree: r.tree, desc: `INSERT ${k} → ${ops}` });
+  }
+  stepperIndex = 0;
+  showStep(0);
+}
+
+function showStep(i) {
+  if (i < 0 || i >= stepperStates.length) return;
+  stepperIndex = i;
+  const s = stepperStates[i];
+  renderTree(s.tree);
+  document.getElementById('step-info').textContent = `${i + 1} / ${stepperStates.length}`;
+  document.getElementById('step-desc').textContent = s.desc;
+}
+
+function stepperNext() {
+  if (stepperStates.length === 0) { stepperLoad(); return; }
+  showStep(Math.min(stepperIndex + 1, stepperStates.length - 1));
+}
+
+function stepperPrev() {
+  showStep(Math.max(stepperIndex - 1, 0));
+}
+
+function stepperPlay() {
+  if (stepperStates.length === 0) { stepperLoad().then(startPlay); return; }
+  startPlay();
+}
+
+function startPlay() {
+  stepperPause();
+  stepperTimer = setInterval(() => {
+    if (stepperIndex >= stepperStates.length - 1) {
+      stepperPause();
+      return;
+    }
+    stepperNext();
+  }, 800);
+}
+
+function stepperPause() {
+  if (stepperTimer) { clearInterval(stepperTimer); stepperTimer = null; }
+}
+</script>
 </body>
 </html>
