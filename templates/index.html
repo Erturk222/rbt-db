@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RBT · Key-Value Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --red-node: #e63946;
+    --red-glow: rgba(230, 57, 70, 0.4);
+    --black-node: #2d2d3d;
+    --black-stroke: #6666aa;
+    --text: #e8e8f0;
+    --muted: #6666aa;
+    --accent: #7c6af7;
+    --accent2: #e63946;
+    --green: #2ec27e;
+    --yellow: #f9c74f;
+    --edge: #3a3a5a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface);
+  }
+  .logo { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; }
+  .logo span { color: #e63946; }
+  .badge {
+    padding: 3px 10px; border-radius: 20px; font-size: 10px;
+    font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    background: rgba(124,106,247,0.15); color: #7c6af7;
+    border: 1px solid rgba(124,106,247,0.3);
+  }
+  .stats-row { margin-left: auto; display: flex; gap: 24px; font-size: 12px; color: var(--muted); }
+  .stat-val { color: var(--text); font-weight: 600; }
+  .container { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 65px); }
+  .sidebar {
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .section-label {
+    padding: 14px 20px 10px; font-size: 10px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .query-area { padding: 16px; border-bottom: 1px solid var(--border); }
+  .query-input-wrap {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; transition: border-color 0.2s;
+  }
+  .query-input-wrap:focus-within { border-color: #7c6af7; box-shadow: 0 0 0 2px rgba(124,106,247,0.15); }
+  .prompt-symbol { color: #7c6af7; font-size: 14px; font-weight: 700; user-select: none; }
+  #query-input {
+    flex: 1; background: none; border: none; outline: none;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--text); caret-color: #7c6af7;
+  }
+  #query-input::placeholder { color: var(--muted); }
+  .run-btn {
+    padding: 8px 18px; margin-top: 10px; width: 100%;
+    background: #7c6af7; border: none; border-radius: 7px; color: white;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .run-btn:hover { background: #6a58e0; transform: translateY(-1px); }
+  .cmds-grid {
+    padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px; border-bottom: 1px solid var(--border);
+  }
+  .cmd-chip {
+    padding: 6px 10px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; font-size: 11px; color: var(--muted); cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .cmd-chip:hover { border-color: #7c6af7; color: #7c6af7; background: rgba(124,106,247,0.08); }
+  .cmd-chip code { font-weight: 600; font-size: 10px; display: block; color: var(--text); margin-bottom: 1px; }
+  .result-area { flex: 1; overflow-y: auto; padding: 16px; }
+  .result-block {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; font-size: 12px;
+    line-height: 1.7; margin-bottom: 8px;
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .result-block.success { border-left: 3px solid #2ec27e; }
+  .result-block.error { border-left: 3px solid #e63946; }
+  .result-block.info { border-left: 3px solid #7c6af7; }
+  .result-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .result-label { color: var(--muted); }
+  .result-val { color: var(--text); font-weight: 600; }
+  .result-val.found { color: #2ec27e; }
+  .result-val.red { color: #e63946; }
+  .op-log { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .op-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; margin: 2px;
+  }
+  .op-insert { background: rgba(46,194,126,0.15); color: #2ec27e; }
+  .op-recolor { background: rgba(249,199,79,0.15); color: #f9c74f; }
+  .op-rotate_left, .op-rotate_right { background: rgba(124,106,247,0.15); color: #7c6af7; }
+  .op-delete { background: rgba(230,57,70,0.15); color: #e63946; }
+  .op-search_found { background: rgba(46,194,126,0.15); color: #2ec27e; }
+  .op-search_not_found { background: rgba(230,57,70,0.15); color: #e63946; }
+  .demo-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+  .demo-btn {
+    padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; cursor: pointer; text-align: left; transition: all 0.15s;
+  }
+  .demo-btn:hover { border-color: #7c6af7; background: rgba(124,106,247,0.08); }
+  .canvas-area { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+  .canvas-toolbar {
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); font-size: 11px; color: var(--muted);
+  }
+  .legend { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.red { background: #e63946; }
+  .dot.black { background: #2d2d3d; border: 1px solid #6666aa; }
+  .zoom-btns { margin-left: auto; display: flex; gap: 4px; }
+  .z-btn {
+    width: 28px; height: 28px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 5px; color: var(--text);
+    font-size: 14px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; transition: border-color 0.15s;
+  }
+  .z-btn:hover { border-color: #7c6af7; color: #7c6af7; }
+  #tree-svg-container { flex: 1; overflow: auto; position: relative; }
+  #tree-svg { display: block; margin: auto; transition: transform 0.15s; }
+  .empty-state {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center; color: var(--muted); pointer-events: none;
+  }
+  .empty-state .big { font-size: 48px; margin-bottom: 12px; }
+  .edge-line { stroke: #3a3a5a; stroke-width: 1.5; transition: all 0.4s ease; }
+  .verify-badge { padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .verify-badge.valid { background: rgba(46,194,126,0.15); color: #2ec27e; border: 1px solid rgba(46,194,126,0.3); }
+  .verify-badge.invalid { background: rgba(230,57,70,0.15); color: #e63946; border: 1px solid rgba(230,57,70,0.3); }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">RBT<span>.</span>db</div>
+  <div class="badge">Red-Black Tree Engine</div>
+  <div class="stats-row">
+    <span>nodes: <span class="stat-val" id="stat-size">0</span></span>
+    <span>bh: <span class="stat-val" id="stat-bh">—</span></span>
+    <span><span class="verify-badge valid" id="stat-valid">✓ valid</span></span>
+  </div>
+</header>
+
+<div class="container">
+  <div class="sidebar">
+    <div class="section-label">Query</div>
+    <div class="query-area">
+      <div class="query-input-wrap">
+        <span class="prompt-symbol">&gt;</span>
+        <input id="query-input" type="text" placeholder="SET city Istanbul" autocomplete="off" spellcheck="false" />
+      </div>
+      <button class="run-btn" onclick="runQuery()">Execute ↵</button>
+    </div>
+    <div class="section-label">Commands</div>
+    <div class="cmds-grid">
+      <div class="cmd-chip" onclick="fillQuery('SET key value')"><code>SET</code>insert / update</div>
+      <div class="cmd-chip" onclick="fillQuery('GET key')"><code>GET</code>lookup</div>
+      <div class="cmd-chip" onclick="fillQuery('DEL key')"><code>DEL</code>delete</div>
+      <div class="cmd-chip" onclick="fillQuery('KEYS')"><code>KEYS</code>list all</div>
+      <div class="cmd-chip" onclick="fillQuery('VERIFY')"><code>VERIFY</code>check invariants</div>
+      <div class="cmd-chip" onclick="fillQuery('CLEAR')"><code>CLEAR</code>reset db</div>
+    </div>
+    <div class="section-label">Result</div>
+    <div class="result-area" id="result-area">
+      <div class="result-block info">
+        <div style="color: var(--muted); font-size: 11px;">Welcome to RBT.db</div>
+        <div style="margin-top: 6px;">Komut yaz veya demo butonlarını kullan.</div>
+      </div>
+    </div>
+    <div class="demo-area">
+      <div class="section-label" style="border-top: 1px solid var(--border); padding-top:12px;">Demo</div>
+      <button class="demo-btn" onclick="loadDemo()">▶ 12 sayısal key ekle</button>
+      <button class="demo-btn" onclick="loadCities()">🏙 8 şehir adı ekle</button>
+      <button class="demo-btn" onclick="verifyTree()">🔍 Invariant kontrolü</button>
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="canvas-toolbar">
+      <div class="legend"><div class="dot red"></div> RED node</div>
+      <div class="legend"><div class="dot black"></div> BLACK node</div>
+      <div style="color: #2a2a3a">|</div>
+      <span id="toolbar-msg">Node ekleyerek başla</span>
+      <div class="zoom-btns">
+        <button class="z-btn" onclick="zoom(0.15)">+</button>
+        <button class="z-btn" onclick="zoom(-0.15)">−</button>
+        <button class="z-btn" onclick="resetZoom()">⊡</button>
+      </div>
+    </div>
+    <div id="tree-svg-container">
+      <div class="empty-state" id="empty-state">
+        <div class="big">🌳</div>
+        <p>Ağaç boş</p>
+        <p style="margin-top:6px; font-size:11px; color: #2a2a3a">Dene: SET isim Ali</p>
+      </div>
+      <svg id="tree-svg" width="800" height="600"></svg>
+    </div>
+  </div>
+</div>
+
+<script>
+async function api(query) {
+  const res = await fetch('/api/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+  return res.json();
+}
+
+async function runQuery() {
+  const input = document.getElementById('query-input');
+  const q = input.value.trim();
+  if (!q) return;
+  const result = await api(q);
+  renderResult(q, result);
+  if (result.tree !== undefined) renderTree(result.tree);
+  updateStats(result);
+  input.value = '';
+  input.focus();
+}
+
+document.getElementById('query-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runQuery();
+});
+
+function fillQuery(text) {
+  const input = document.getElementById('query-input');
+  input.value = text;
+  input.focus();
+}
+
+function renderResult(query, result) {
+  const area = document.getElementById('result-area');
+  const div = document.createElement('div');
+  let cls = 'result-block info';
+  if (result.error) cls = 'result-block error';
+  else if (result.found === true || result.action === 'insert' || result.action === 'delete') cls = 'result-block success';
+  else if (result.found === false) cls = 'result-block error';
+  div.className = cls;
+
+  let html = `<div style="color: var(--muted); font-size: 10px; margin-bottom: 8px;">&gt; ${query}</div>`;
+  if (result.error) {
+    html += `<span style="color: #e63946">${result.error}</span>`;
+  } else if (result.action === 'insert' || result.action === 'update') {
+    html += `<div class="result-row"><span class="result-label">action</span><span class="result-val found">${result.action}</span></div>`;
+    html += `<div class="result-row"><span class="result-label">key</span><span class="result-val">${result.key}</span></div>`;
+    html += `<div class="result-row"><span class="result-label">value</span><span class="result-val">${result.value}</span></div>`;
+    html += `<div class="result-row"><span class="result-label">size</span><span class="result-val">${result.size}</span></div>`;
+  } else if (result.action === 'delete') {
+    html += `<div class="result-row"><span class="result-label">deleted</span><span class="result-val red">${result.key}</span></div>`;
+    html += `<div class="result-row"><span class="result-label">size</span><span class="result-val">${result.size}</span></div>`;
+  } else if (result.action === 'not_found') {
+    html += `<span style="color: #e63946">Key "${result.key}" bulunamadı</span>`;
+  } else if (result.hasOwnProperty('found')) {
+    html += `<div class="result-row"><span class="result-label">found</span><span class="result-val ${result.found ? 'found' : 'red'}">${result.found}</span></div>`;
+    if (result.found) {
+      html += `<div class="result-row"><span class="result-label">key</span><span class="result-val">${result.key}</span></div>`;
+      html += `<div class="result-row"><span class="result-label">value</span><span class="result-val">${result.value}</span></div>`;
+    }
+  } else if (result.valid !== undefined) {
+    html += `<div class="result-row"><span class="result-label">valid</span><span class="result-val ${result.valid ? 'found' : 'red'}">${result.valid}</span></div>`;
+    html += `<div class="result-row"><span class="result-label">black height</span><span class="result-val">${result.black_height}</span></div>`;
+    html += `<div class="result-row"><span class="result-label">root is black</span><span class="result-val ${result.root_is_black ? 'found' : 'red'}">${result.root_is_black}</span></div>`;
+    html += `<div class="result-row"><span class="result-label">red property</span><span class="result-val ${result.red_property_valid ? 'found' : 'red'}">${result.red_property_valid}</span></div>`;
+  } else if (result.keys) {
+    html += `<div style="color: var(--muted); font-size: 11px; margin-bottom: 6px;">${result.keys.length} key (sıralı)</div>`;
+    html += result.keys.slice(0, 20).map(k => `<div class="result-row"><span style="color:#7c6af7">${k.key}</span><span style="color:var(--muted)">${k.value}</span></div>`).join('');
+  } else if (result.message) {
+    html += `<span style="color: #f9c74f">${result.message}</span>`;
+  }
+
+  if (result.log && result.log.length > 0) {
+    html += `<div class="op-log"><div style="color:var(--muted);font-size:10px;margin-bottom:6px">işlemler:</div>`;
+    result.log.forEach(op => {
+      html += `<span class="op-tag op-${op.action}">${op.action.replace('_', ' ')} ${op.key || ''}</span>`;
+    });
+    html += '</div>';
+  }
+
+  div.innerHTML = html;
+  area.insertBefore(div, area.firstChild);
+  while (area.children.length > 10) area.removeChild(area.lastChild);
+}
+
+function updateStats(result) {
+  if (result.size !== undefined) document.getElementById('stat-size').textContent = result.size;
+  if (result.black_height !== undefined) document.getElementById('stat-bh').textContent = result.black_height;
+  if (result.valid !== undefined) {
+    const el = document.getElementById('stat-valid');
+    el.textContent = result.valid ? '✓ valid' : '✗ invalid';
+    el.className = 'verify-badge ' + (result.valid ? 'valid' : 'invalid');
+  }
+}
+
+const NODE_R = 24;
+const H_GAP = 58;
+const V_GAP = 70;
+let scale = 1;
+
+function computeLayout(node, depth = 0, counter = { val: 0 }) {
+  if (!node) return null;
+  const left = computeLayout(node.left, depth + 1, counter);
+  const x = counter.val++;
+  const right = computeLayout(node.right, depth + 1, counter);
+  return { ...node, x, y: depth, left, right };
+}
+
+function renderTree(treeData) {
+  const svg = document.getElementById('tree-svg');
+  const emptyState = document.getElementById('empty-state');
+  if (!treeData) {
+    svg.innerHTML = '';
+    emptyState.style.display = 'block';
+    return;
+  }
+  emptyState.style.display = 'none';
+  const layout = computeLayout(treeData);
+  const nodes = [];
+  const edges = [];
+
+  function flatten(node, parentX = null, parentY = null) {
+    if (!node) return;
+    const px = (node.x + 0.5) * H_GAP;
+    const py = (node.y + 0.5) * V_GAP + 20;
+    nodes.push({ ...node, px, py });
+    if (parentX !== null) edges.push({ x1: parentX, y1: parentY, x2: px, y2: py });
+    flatten(node.left, px, py);
+    flatten(node.right, px, py);
+  }
+
+  flatten(layout);
+  const maxX = Math.max(...nodes.map(n => n.px)) + H_GAP;
+  const maxY = Math.max(...nodes.map(n => n.py)) + V_GAP;
+  svg.setAttribute('width', Math.max(maxX, 600));
+  svg.setAttribute('height', Math.max(maxY, 300));
+
+  let svgContent = '';
+  edges.forEach(e => {
+    svgContent += `<line class="edge-line" x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}"/>`;
+  });
+  nodes.forEach(n => {
+    const fill = n.color === 'red' ? '#e63946' : '#2d2d3d';
+    const stroke = n.color === 'red' ? '#e63946' : '#6666aa';
+    svgContent += `
+      <g data-key="${n.key}" style="cursor:pointer" onclick="clickNode('${n.key}')">
+        <circle cx="${n.px}" cy="${n.py}" r="${NODE_R}" fill="${fill}" stroke="${stroke}" stroke-width="2"
+          ${n.color === 'red' ? 'filter="drop-shadow(0 0 8px rgba(230,57,70,0.5))"' : ''}/>
+        <text x="${n.px}" y="${n.py + 1}" text-anchor="middle" dominant-baseline="middle"
+          fill="white" font-family="JetBrains Mono,monospace"
+          font-size="${n.key.length > 5 ? '9' : n.key.length > 3 ? '11' : '13'}"
+          font-weight="600" pointer-events="none">${n.key}</text>
+        <text x="${n.px}" y="${n.py + NODE_R + 13}" text-anchor="middle"
+          fill="#6666aa" font-family="JetBrains Mono,monospace" font-size="9"
+          pointer-events="none">${String(n.value).substring(0, 8)}</text>
+      </g>`;
+  });
+  svg.innerHTML = svgContent;
+  document.getElementById('toolbar-msg').textContent = `${nodes.length} node — herhangi bir node'a tıkla`;
+}
+
+function clickNode(key) {
+  document.getElementById('query-input').value = `GET ${key}`;
+  runQuery();
+}
+
+function zoom(delta) {
+  scale = Math.max(0.3, Math.min(2.5, scale + delta));
+  document.getElementById('tree-svg').style.transform = `scale(${scale})`;
+  document.getElementById('tree-svg').style.transformOrigin = 'top center';
+}
+
+function resetZoom() {
+  scale = 1;
+  document.getElementById('tree-svg').style.transform = 'scale(1)';
+}
+
+async function loadDemo() {
+  await api('CLEAR');
+  const entries = [['15','15'],['6','6'],['18','18'],['3','3'],['7','7'],['17','17'],['20','20'],['2','2'],['4','4'],['13','13'],['9','9'],['11','11']];
+  let last;
+  for (const [k, v] of entries) last = await api(`SET ${k} ${v}`);
+  if (last) { renderTree(last.tree); updateStats(last); }
+  const verify = await api('VERIFY');
+  updateStats(verify);
+  renderResult('demo: 12 key', { ...verify, size: 12, log: [] });
+}
+
+async function loadCities() {
+  await api('CLEAR');
+  const cities = [['IST','Istanbul'],['ANK','Ankara'],['IZM','Izmir'],['BUR','Bursa'],['ANT','Antalya'],['ADN','Adana'],['KNY','Konya'],['GAZ','Gaziantep']];
+  let last;
+  for (const [k, v] of cities) last = await api(`SET ${k} ${v}`);
+  if (last) { renderTree(last.tree); updateStats(last); }
+  const verify = await api('VERIFY');
+  updateStats(verify);
+  renderResult('demo: 8 şehir', { ...verify, size: 8, log: [] });
+}
+
+async function verifyTree() {
+  const result = await api('VERIFY');
+  renderResult('VERIFY', result);
+  updateStats(result);
+}
+
+(async () => {
+  const res = await fetch('/api/tree');
+  const data = await res.json();
+  if (data.tree) renderTree(data.tree);
+})();
+</script>
+</body>
+</html>
